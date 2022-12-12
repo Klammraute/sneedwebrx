@@ -71,3 +71,14 @@ class ActiveListTest(TestCase):
         x = [m for m in list]
         self.assertEqual(len(x), 1)
         self.assertEqual(x[0], "initialvalue")
+
+    def testListenerRemoval(self):
+        list = ActiveList(["initialvalue"])
+        listenerMock = Mock()
+        list.addListener(listenerMock)
+        list[0] = "testvalue"
+        listenerMock.onIndexChanged.assert_called_once_with(0, "testvalue")
+        listenerMock.reset_mock()
+        list.removeListener(listenerMock)
+        list[0] = "someothervalue"
+        listenerMock.onIndexChanged.assert_not_called()
