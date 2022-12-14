@@ -98,3 +98,26 @@ class ActiveListTest(TestCase):
         list.removeListener(listenerMock)
         list[0] = "someothervalue"
         listenerMock.onListChange.assert_not_called()
+
+    def testListMapTransformation(self):
+        list = ActiveList(["somevalue"])
+        transformedList = list.map(lambda x: "prefix-{}".format(x))
+        self.assertEqual(transformedList[0], "prefix-somevalue")
+
+    def testActiveTransformationUpdate(self):
+        list = ActiveList(["initialvalue"])
+        transformedList = list.map(lambda x: "prefix-{}".format(x))
+        list[0] = "testvalue"
+        self.assertEqual(transformedList[0], "prefix-testvalue")
+
+    def testActiveTransformationAppend(self):
+        list = ActiveList(["initialvalue"])
+        transformedList = list.map(lambda x: "prefix-{}".format(x))
+        list.append("newvalue")
+        self.assertEqual(transformedList[1], "prefix-newvalue")
+
+    def testActiveTransformationDelete(self):
+        list = ActiveList(["value1", "value2"])
+        transformedList = list.map(lambda x: "prefix-{}".format(x))
+        del list[0]
+        self.assertEqual(transformedList[0], "prefix-value2")

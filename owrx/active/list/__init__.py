@@ -33,6 +33,21 @@ class ActiveListListener(ABC):
         pass
 
 
+class ActiveListTransformationListener(ActiveListListener):
+    def __init__(self, transformation: callable, target: "ActiveList"):
+        self.transformation = transformation
+        self.target = target
+
+    def onListChange(self, changes: list[ActiveListChange]):
+        for change in changes:
+            if isinstance(change, ActiveListIndexUpdated):
+                self.target[change.index] = self.transformation(change.newValue)
+            elif isinstance(change, ActiveListIndexAppended):
+                self.target.append(self.transformation(change.newValue))
+            elif isinstance(change, ActiveListIndexDeleted):
+                del self.target[change.index]
+
+
 class ActiveList:
     def __init__(self, elements: list = None):
         self.delegate = elements.copy() if elements is not None else []
@@ -61,6 +76,11 @@ class ActiveList:
 
     def remove(self, value):
         self.__delitem__(self.delegate.index(value))
+
+    def map(self, transform: callable):
+        res = ActiveList([transform(v) for v in self])
+        self.addListener(ActiveListTransformationListener(transform, res))
+        return res
 
     def __setitem__(self, key, value):
         if self.delegate[key] == value:
