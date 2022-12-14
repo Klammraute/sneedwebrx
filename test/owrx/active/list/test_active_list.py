@@ -1,4 +1,4 @@
-from owrx.active.list import ActiveList
+from owrx.active.list import ActiveList, ActiveListIndexUpdated, ActiveListIndexAppended, ActiveListIndexDeleted
 from unittest import TestCase
 from unittest.mock import Mock
 
@@ -22,17 +22,23 @@ class ActiveListTest(TestCase):
         listenerMock = Mock()
         list.addListener(listenerMock)
         list[0] = "testvalue"
-        listenerMock.onIndexChanged.assert_called_once_with(0, "testvalue")
+        listenerMock.onListChange.assert_called_once()
+        changes, = listenerMock.onListChange.call_args.args
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexUpdated)
+        self.assertEqual(changes[0].index, 0)
+        self.assertEqual(changes[0].oldValue, "initialvalue")
+        self.assertEqual(changes[0].newValue, "testvalue")
 
     def testListIndexChangeNotficationNotDisturbedByException(self):
         list = ActiveList(["initialvalue"])
         throwingMock = Mock()
-        throwingMock.onIndexChanged.side_effect = RuntimeError("this is a drill")
+        throwingMock.onListChange.side_effect = RuntimeError("this is a drill")
         list.addListener(throwingMock)
         listenerMock = Mock()
         list.addListener(listenerMock)
         list[0] = "testvalue"
-        listenerMock.onIndexChanged.assert_called_once_with(0, "testvalue")
+        listenerMock.onListChange.assert_called_once()
 
     def testListAppend(self):
         list = ActiveList()
@@ -45,7 +51,12 @@ class ActiveListTest(TestCase):
         listenerMock = Mock()
         list.addListener(listenerMock)
         list.append("testvalue")
-        listenerMock.onAppend.assert_called_once_with("testvalue")
+        listenerMock.onListChange.assert_called_once()
+        changes, = listenerMock.onListChange.call_args.args
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexAppended)
+        self.assertEqual(changes[0].index, 0)
+        self.assertEqual(changes[0].newValue, "testvalue")
 
     def testListDelete(self):
         list = ActiveList(["value1", "value2"])
@@ -53,12 +64,17 @@ class ActiveListTest(TestCase):
         self.assertEqual(len(list), 1)
         self.assertEqual(list[0], "value2")
 
-    def testListDelteNotification(self):
+    def testListDeleteNotification(self):
         list = ActiveList(["value1", "value2"])
         listenerMock = Mock()
         list.addListener(listenerMock)
         del list[0]
-        listenerMock.onDelete.assert_called_once_with(0)
+        listenerMock.onListChange.assert_called_once()
+        changes, = listenerMock.onListChange.call_args.args
+        self.assertEqual(len(changes), 1)
+        self.assertIsInstance(changes[0], ActiveListIndexDeleted)
+        self.assertEqual(changes[0].index, 0)
+        self.assertEqual(changes[0].oldValue, 'value1')
 
     def testListDeleteByValue(self):
         list = ActiveList(["value1", "value2"])
@@ -77,8 +93,8 @@ class ActiveListTest(TestCase):
         listenerMock = Mock()
         list.addListener(listenerMock)
         list[0] = "testvalue"
-        listenerMock.onIndexChanged.assert_called_once_with(0, "testvalue")
+        listenerMock.onListChange.assert_called_once()
         listenerMock.reset_mock()
         list.removeListener(listenerMock)
         list[0] = "someothervalue"
-        listenerMock.onIndexChanged.assert_not_called()
+        listenerMock.onListChange.assert_not_called()

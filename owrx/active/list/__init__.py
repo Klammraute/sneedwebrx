@@ -4,17 +4,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class ActiveListChange(ABC):
+    pass
+
+
+class ActiveListIndexUpdated(ActiveListChange):
+    def __init__(self, index: int, oldValue, newValue):
+        self.index = index
+        self.oldValue = oldValue
+        self.newValue = newValue
+
+
+class ActiveListIndexAppended(ActiveListChange):
+    def __init__(self, index: int, newValue):
+        self.index = index
+        self.newValue = newValue
+
+
+class ActiveListIndexDeleted(ActiveListChange):
+    def __init__(self, index: int, oldValue):
+        self.index = index
+        self.oldValue = oldValue
+
+
 class ActiveListListener(ABC):
     @abstractmethod
-    def onIndexChanged(self, index, newValue):
-        pass
-
-    @abstractmethod
-    def onAppend(self, newValue):
-        pass
-
-    @abstractmethod
-    def onDelete(self, index):
+    def onListChange(self, changes: list[ActiveListChange]):
         pass
 
 
@@ -35,30 +50,29 @@ class ActiveList:
 
     def append(self, value):
         self.delegate.append(value)
+        self.__fireChanges([ActiveListIndexAppended(len(self) - 1, value)])
+
+    def __fireChanges(self, changes: list[ActiveListChange]):
         for listener in self.listeners:
             try:
-                listener.onAppend(value)
+                listener.onListChange(changes)
             except Exception:
-                logger.exception("Exception during onAppend notification")
+                logger.exception("Exception during onListChange notification")
 
     def remove(self, value):
         self.__delitem__(self.delegate.index(value))
 
     def __setitem__(self, key, value):
+        if self.delegate[key] == value:
+            return
+        oldValue = self.delegate[key]
         self.delegate[key] = value
-        for listener in self.listeners:
-            try:
-                listener.onIndexChanged(key, value)
-            except Exception:
-                logger.exception("Exception during onKeyChanged notification")
+        self.__fireChanges([ActiveListIndexUpdated(key, oldValue, value)])
 
     def __delitem__(self, key):
+        oldValue = self.delegate[key]
         del self.delegate[key]
-        for listener in self.listeners:
-            try:
-                listener.onDelete(key)
-            except Exception:
-                logger.exception("Exception during onDelete notification")
+        self.__fireChanges([ActiveListIndexDeleted(key, oldValue)])
 
     def __getitem__(self, key):
         return self.delegate[key]
